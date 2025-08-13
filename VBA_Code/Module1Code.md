@@ -10,13 +10,11 @@ Function FindDrugRowInWeeklyExpected(drugName As String, wsExpected As Worksheet
     Next i
     FindDrugRowInWeeklyExpected = 0 ' Not found
 End Function
-'— COMPLETE DYNAMIC BULLETPROOF MODULE1 CODE
 Option Explicit
 
 ' Constants for sheet names - protects against accidental renaming
 Private Const SHEET_WEEKLYEXPECTED As String = "SupplierData"
 Private Const SHEET_TECHCOUNTS As String = "PhysicalCount"
-Private Const SHEET_EXTERNAL As String = "Current Product Inventory Overv"
 Private Const TABLE_NAME As String = "Table13"
 
 ' Dynamic range constants - will be updated during import
@@ -75,7 +73,7 @@ Function GetWeeklyExpectedDataRange() As Long
     GetWeeklyExpectedDataRange = lastRow
 End Function
 
-...existing code...
+
 
 '— Enhanced Main report generator with bulletproof error handling and drug name matching (DYNAMIC)
 Sub GenerateReport()
@@ -110,8 +108,8 @@ Sub GenerateReport()
     wsR.Range("A1").Font.Bold = True
     wsR.Range("A1").Font.Name = "Calibri"
     wsR.Range("A1").HorizontalAlignment = xlCenter
-    wsR.Range("A1:F1").Merge
-    wsR.Range("A4:F4").Value = Array("Drug Name", "Drug ID", "Physical Count", "Expected Count", "Status", "Comments")
+    wsR.Range("A1:E1").Merge
+    wsR.Range("A4:E4").Value = Array("Drug Name", "Drug ID", "Expected Count", "Physical Count", "Status")
     r = 5
     noMatchCount = 0
     noMatchList = ""
@@ -128,8 +126,8 @@ Sub GenerateReport()
                 expectedCount = wsE.Cells(rowE, 3).Value
                 wsR.Cells(r, "A").Value = drugName
                 wsR.Cells(r, "B").Value = wsE.Cells(rowE, 2).Value
-                wsR.Cells(r, "C").Value = physCount
-                wsR.Cells(r, "D").Value = expectedCount
+                wsR.Cells(r, "C").Value = expectedCount
+                wsR.Cells(r, "D").Value = physCount
                 diff = Val(physCount) - Val(expectedCount)
                 If diff > 0 Then
                     wsR.Cells(r, "E").Value = "surplus of " & diff
@@ -138,7 +136,6 @@ Sub GenerateReport()
                 Else
                     wsR.Cells(r, "E").Value = ""
                 End If
-                wsR.Cells(r, "F").Value = ""
                 r = r + 1
             Else
                 noMatchCount = noMatchCount + 1
@@ -226,10 +223,15 @@ Sub ImportWeeklyData()
 
     Application.ScreenUpdating = False
     Application.EnableEvents = False
-    ThisWorkbook.Sheets(SHEET_WEEKLYEXPECTED).ImportInProgress = True
 
     Set wbSrc = Workbooks.Open(Filename:=filePath, ReadOnly:=True)
-    Set wsSrc = wbSrc.Sheets(1) ' Use the first sheet
+    On Error Resume Next
+    Set wsSrc = wbSrc.Sheets("SupData")
+    On Error GoTo ImportError
+    If wsSrc Is Nothing Then
+        MsgBox "The selected workbook does not contain a sheet named 'SupData'.", vbExclamation
+        GoTo ImportCleanup
+    End If
     Set wsDest = ThisWorkbook.Sheets(SHEET_WEEKLYEXPECTED)
 
     ' Find header row
@@ -254,12 +256,11 @@ Sub ImportWeeklyData()
         GoTo ImportCleanup
     End If
 
-    ' Clear only columns A and C from row 9 down
+    ' Clear existing data in columns A:C from row 9 down
     Dim destLastRow As Long
     destLastRow = wsDest.Cells(wsDest.Rows.Count, 1).End(xlUp).Row
     If destLastRow >= 9 Then
-        wsDest.Range("A9:A" & destLastRow).ClearContents
-        wsDest.Range("C9:C" & destLastRow).ClearContents
+        wsDest.Range("A9:C" & destLastRow).ClearContents
     End If
 
     ' Import data from supplier file
@@ -295,7 +296,6 @@ Sub ImportWeeklyData()
 
 ImportCleanup:
     On Error Resume Next
-    ThisWorkbook.Sheets(SHEET_WEEKLYEXPECTED).ImportInProgress = False
     If Not wbSrc Is Nothing Then wbSrc.Close SaveChanges:=False
     Application.EnableEvents = True
     Application.ScreenUpdating = True
@@ -393,9 +393,6 @@ Sub ClearInputs()
     
     If Not ValidateSheets() Then Exit Sub
 
-    ' Set flag to bypass protection during programmatic clearing
-    ThisWorkbook.Sheets(SHEET_TECHCOUNTS).ClearInProgress = True
-
     ' Clear the Count and Timestamp columns in Table13 (DYNAMIC)
     Dim lo As ListObject
     Dim physCountColumn As ListColumn
@@ -431,17 +428,10 @@ Sub ClearInputs()
         timestampColumn.DataBodyRange.ClearContents
     End If
 
-    ' Clear the flag
-    ThisWorkbook.Sheets(SHEET_TECHCOUNTS).ClearInProgress = False
-
     MsgBox "Inputs cleared.", vbInformation
     Exit Sub
-    
+
 ClearError:
-    ' Ensure flag is cleared on error
-    On Error Resume Next
-    ThisWorkbook.Sheets(SHEET_TECHCOUNTS).ClearInProgress = False
-    On Error GoTo 0
     MsgBox "Error clearing inputs: " & Err.Description, vbExclamation
 End Sub
 
@@ -486,11 +476,6 @@ Sub RestoreWorkbookFunctionality()
     Application.ScreenUpdating = True
     Application.Calculation = xlCalculationAutomatic
     
-    ' Clear any import flags that might be stuck
-    ThisWorkbook.Sheets(SHEET_TECHCOUNTS).ImportInProgress = False
-    ThisWorkbook.Sheets(SHEET_WEEKLYEXPECTED).ImportInProgress = False
-    ThisWorkbook.Sheets(SHEET_TECHCOUNTS).ClearInProgress = False
-    
     ' Remove any problematic data validation (Worksheet_Change event handles validation)
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets("PhysicalCount")
@@ -508,7 +493,6 @@ Sub RestoreWorkbookFunctionality()
     MsgBox "Workbook functionality restored!" & vbCrLf & vbCrLf & _
            "• Events re-enabled" & vbCrLf & _
            "• Conflicting data validation removed" & vbCrLf & _
-           "• Import/Clear flags cleared" & vbCrLf & _
            "• Cell formatting reset to prevent date conversion" & vbCrLf & _
            "• Validation now handled by worksheet events only", vbInformation, "Recovery Complete"
 End Sub

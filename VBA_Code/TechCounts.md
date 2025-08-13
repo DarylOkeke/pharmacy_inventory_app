@@ -1,10 +1,5 @@
 Option Explicit
 
-' Flag to bypass protection during imports
-Public ImportInProgress As Boolean
-' Flag to bypass protection during programmatic clearing
-Public ClearInProgress As Boolean
-
 '— Enhanced entry handling with validation for expressions and timestamp on TechCounts sheet (DYNAMIC)
 Private Sub Worksheet_Change(ByVal Target As Range)
     Dim rng As Range
@@ -99,24 +94,18 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                 
                 ' Only add timestamp if validation passed
                 If isValid And Not timestampColumn Is Nothing Then
-                    ' Temporarily enable import flag to prevent protection prompt for timestamp
-                    ImportInProgress = True
                     ' Find corresponding timestamp cell in the same row
                     Set timestampCell = timestampColumn.DataBodyRange.Cells(rng.Row - timestampColumn.DataBodyRange.Row + 1, 1)
                     timestampCell.Value = Format(Now, "m/d h:nn AM/PM")
                     timestampColumn.DataBodyRange.EntireColumn.AutoFit
-                    ImportInProgress = False
                 Else
                     GoTo ValidationError
                 End If
             Else
                 ' If count value is empty/deleted, clear the corresponding timestamp
                 If Not timestampColumn Is Nothing Then
-                    ' Temporarily enable import flag to prevent protection prompt
-                    ImportInProgress = True
                     Set timestampCell = timestampColumn.DataBodyRange.Cells(rng.Row - timestampColumn.DataBodyRange.Row + 1, 1)
                     timestampCell.Value = ""
-                    ImportInProgress = False
                 End If
                 ' Also ensure the cell formatting is set to General for count column
                 rng.NumberFormat = "General"
@@ -132,10 +121,8 @@ ValidationError:
         rng.Value = ""
         ' Clear timestamp without triggering protection
         If Not timestampColumn Is Nothing Then
-            ImportInProgress = True
             Set timestampCell = timestampColumn.DataBodyRange.Cells(rng.Row - timestampColumn.DataBodyRange.Row + 1, 1)
             timestampCell.Value = ""
-            ImportInProgress = False
         End If
         
         MsgBox "Invalid input detected!" & vbCrLf & vbCrLf & _
