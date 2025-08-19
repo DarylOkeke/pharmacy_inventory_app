@@ -40,6 +40,8 @@ To solve this, I built a secure Excel-based app that:
 
 ##  Demo Version (what’s here)
 
+Try out the demo [here](https://github.com/DarylOkeke/pharmacy_inventory_app/releases/tag/v1.0.0)
+
 This repo provides a **demo** with safe sample data, to showcase the concepts:
 
 - **Generate Sample Data (30d)** → creates synthetic drug inventory + dispense logs
